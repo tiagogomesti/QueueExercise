@@ -40,4 +40,3 @@ As an example implement the following in main():
 
 2. Develop unit tests for the Queue class with support of a framework (e.g. cppunit, gtest,catch).
 3. Develop a CMake configuration file to ease the build process (inc. tests).
-4. Share your code at your Gitthub or Bitbucket account and send us the link.
