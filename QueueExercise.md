@@ -25,13 +25,13 @@ class Queue<T> {
 As an example implement the following in main():
 
 | Writing Thread step           | Queue (after step) | Reading Thread step |
-|:------------------------------|-------------------:|--------------------:|
+| :---------------------------- | -----------------: | ------------------: |
 | New Queue<int>(2)             |                    |                     |
 | Push(1)                       |                  1 |                     |
 |                               |                    |          Pop() -> 1 |
 | Push(2)                       |                  2 |                     |
-| Push(3)                       |                2,3 |                     |
-| Push(4) // Element 2 dropped! |                3,4 |                     |
+| Push(3)                       |                3,2 |                     |
+| Push(4) // Element 2 dropped! |                4,3 |                     |
 |                               |                  4 |          Pop() -> 3 |
 |                               |                    |          Pop() -> 4 |
 |                               |                    |     Pop() // blocks |
