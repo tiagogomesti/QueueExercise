@@ -1,9 +1,16 @@
-#include <chrono>  // std::chrono::seconds
+#include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <iostream>
 #include <mutex>
 #include <thread>
+
+class QueueTimeoutException : public std::runtime_error {
+public:
+    QueueTimeoutException(const std::string& message)
+        : std::runtime_error(message) {
+    }
+};
 
 template<typename T>
 class Queue {
@@ -15,11 +22,10 @@ public:
         , tail(0)
         , isFull(false)
         , queueState(QueueState::EMPTY) {
-        std::cout << "Hello from Queue" << std::endl;
     }
 
     void push(T element) {
-        std::lock_guard<std::mutex> guard(queueMutex);
+        std::unique_lock<std::mutex> lock(queueMutex);
         switch (queueState) {
         case QueueState::EMPTY:
             queue[header] = new T(element);
@@ -43,13 +49,11 @@ public:
 
     T pop() {
         T t;
-        std::unique_lock uLock(queueMutex);
+        std::unique_lock<std::mutex> lock(queueMutex);
 
         switch (queueState) {
         case QueueState::EMPTY:
-            uLock.unlock();
-            conditionVariable.wait(uLock, [this] { return this->queueState != QueueState::EMPTY; });
-            uLock.lock();
+            conditionVariable.wait(lock, [this] { return this->queueState != QueueState::EMPTY; });
             t = *queue[tail];
             delete queue[tail];
             tail = (tail + 1) % queueSize;
@@ -65,16 +69,41 @@ public:
             break;
         }
 
-        uLock.unlock();
         return t;
     }
 
     T pop(int milisecondsTimeout) {
-        // std::this_thread::sleep_for(std::chrono::seconds(1));
-        return T{};
+        T t;
+        std::unique_lock<std::mutex> lock(queueMutex);
+
+        switch (queueState) {
+        case QueueState::EMPTY:
+            if (conditionVariable.wait_for(lock, std::chrono::milliseconds(milisecondsTimeout), [this] {
+                    return this->queueState != QueueState::EMPTY;
+                })) {
+                t = *queue[tail];
+                delete queue[tail];
+                tail = (tail + 1) % queueSize;
+                queueState = (header == tail) ? QueueState::EMPTY : QueueState::NOT_FULL_EMPTY;
+            } else {
+                throw QueueTimeoutException("Pop timeout");
+            }
+            break;
+
+        case QueueState::NOT_FULL_EMPTY:
+        case QueueState::FULL:
+            t = *queue[tail];
+            delete queue[tail];
+            tail = (tail + 1) % queueSize;
+            queueState = (header == tail) ? QueueState::EMPTY : QueueState::NOT_FULL_EMPTY;
+            break;
+        }
+
+        return t;
     }
 
     int count() {
+        std::lock_guard<std::mutex> guard(queueMutex);
         return header > tail ? header - tail : header + queueSize - tail;
     }
 
