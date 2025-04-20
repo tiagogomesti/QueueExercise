@@ -24,6 +24,11 @@ public:
         , queueState(QueueState::EMPTY) {
     }
 
+    /**
+     * @brief
+     *
+     * @param element
+     */
     void push(T element) {
         std::unique_lock<std::mutex> lock(queueMutex);
         switch (queueState) {
@@ -47,6 +52,11 @@ public:
         }
     }
 
+    /**
+     * @brief 
+     * 
+     * @return T 
+     */
     T pop() {
         T t;
         std::unique_lock<std::mutex> lock(queueMutex);
@@ -72,6 +82,12 @@ public:
         return t;
     }
 
+    /**
+     * @brief 
+     * 
+     * @param milisecondsTimeout 
+     * @return T 
+     */
     T pop(int milisecondsTimeout) {
         T t;
         std::unique_lock<std::mutex> lock(queueMutex);
@@ -102,9 +118,31 @@ public:
         return t;
     }
 
+    /**
+     * @brief 
+     * 
+     * @return int 
+     */
     int count() {
         std::lock_guard<std::mutex> guard(queueMutex);
-        return header > tail ? header - tail : header + queueSize - tail;
+
+        int nElements = 0;
+
+        switch (queueState) {
+        case QueueState::EMPTY:
+            nElements = 0;
+            break;
+
+        case QueueState::NOT_FULL_EMPTY:
+            nElements = header >= tail ? header - tail : header + queueSize - tail;
+            break;
+
+        case QueueState::FULL:
+            nElements = queueSize;
+            break;
+        }
+
+        return nElements;
     }
 
     int size() {
