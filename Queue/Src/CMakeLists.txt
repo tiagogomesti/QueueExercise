@@ -2,20 +2,12 @@ project(QueueLib)
 
 add_library(
     Queue 
-        Queue.cpp
-)
-
-target_sources(
-    Queue
-        PRIVATE
-            Queue.cpp
+        INTERFACE
 )
 
 target_include_directories(
     Queue
-        PUBLIC
+        INTERFACE 
             .
 )
-
-# add_subdirectory(test)
 

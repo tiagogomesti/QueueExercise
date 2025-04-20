@@ -9,8 +9,8 @@ On the project root location:
 $ mkdir build && cd build
 $ cmake ../
 $ make
-Wait for project building.
 ```
+Wait for project building.
 
 ## Running QueueApp executable (from main.cpp file)
 On the build folder location:
