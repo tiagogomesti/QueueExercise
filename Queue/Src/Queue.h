@@ -1,3 +1,12 @@
+/**
+ * @file Queue.h
+ * @author Tiago Gomes (tiagogomes.ti@gmail.com)
+ * @brief Generic data queue class
+ * @version 0.1
+ * @date 2025-04-21
+ *
+ */
+
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -5,6 +14,11 @@
 #include <mutex>
 #include <thread>
 
+/**
+ * @brief Class used to raise an exception when a pop with a timeout
+ * is used and this timeout is exceeded.
+ *
+ */
 class QueueTimeoutException : public std::runtime_error {
 public:
     QueueTimeoutException(const std::string& message)
@@ -12,9 +26,19 @@ public:
     }
 };
 
+/**
+ * @brief Class responsible for implementing a queue for data of type \p T.
+ *
+ * @tparam T The data type of the elements in the queue.
+ */
 template<typename T>
 class Queue {
 public:
+    /**
+     * @brief Constructs a new Queue object for data of type \p T.
+     *
+     * @param[in] size The size of the queue.
+     */
     Queue(uint32_t size)
         : queueSize(size)
         , queue{new T*[size]}
@@ -25,9 +49,27 @@ public:
     }
 
     /**
-     * @brief
+     * @brief Destroys the Queue object, deleting the allocated memory.
      *
-     * @param element
+     */
+    ~Queue() {
+        std::lock_guard<std::mutex> guard(queueMutex);
+
+        if (queueState != QueueState::EMPTY) {
+            do {
+                delete queue[header];
+                header = (header + 1) % queueSize;
+            } while (header != tail);
+        }
+
+        queueState = QueueState::EMPTY;
+    }
+
+    /**
+     * @brief Pushes a new \p element into the queue. If the queue is full, the \p element overwrites
+     * the oldest element.
+     *
+     * @param[in] element The element of type T to be pushed into the queue.
      */
     void push(T element) {
         std::unique_lock<std::mutex> lock(queueMutex);
@@ -53,9 +95,10 @@ public:
     }
 
     /**
-     * @brief 
-     * 
-     * @return T 
+     * @brief Returns the oldest element in the queue. If the queue is empty, this method will
+     * block the current thread execution until a new element is pushed.
+     *
+     * @return T The oldest element in the queue.
      */
     T pop() {
         T t;
@@ -83,18 +126,22 @@ public:
     }
 
     /**
-     * @brief 
-     * 
-     * @param milisecondsTimeout 
-     * @return T 
+     * @brief Returns the oldest element in the queue. If the queue is empty, it will
+     * block the current thread execution until a new element is pushed. If
+     * the waiting time exceeds \p millisecondsTimeout, a QueueTimeoutException
+     * exception will be thrown.
+     *
+     * @param[in] millisecondsTimeout The timeout in milliseconds.
+     * @return T The oldest element in the queue.
+     * @throws QueueTimeoutException If the timeout is exceeded before an element is available.
      */
-    T pop(int milisecondsTimeout) {
+    T pop(int millisecondsTimeout) {
         T t;
         std::unique_lock<std::mutex> lock(queueMutex);
 
         switch (queueState) {
         case QueueState::EMPTY:
-            if (conditionVariable.wait_for(lock, std::chrono::milliseconds(milisecondsTimeout), [this] {
+            if (conditionVariable.wait_for(lock, std::chrono::milliseconds(millisecondsTimeout), [this] {
                     return this->queueState != QueueState::EMPTY;
                 })) {
                 t = *queue[tail];
@@ -119,9 +166,9 @@ public:
     }
 
     /**
-     * @brief 
-     * 
-     * @return int 
+     * @brief Returns the current number of elements in the queue.
+     *
+     * @return int The number of elements.
      */
     int count() {
         std::lock_guard<std::mutex> guard(queueMutex);
@@ -145,6 +192,11 @@ public:
         return nElements;
     }
 
+    /**
+     * @brief Returns the size of the queue.
+     *
+     * @return int The queue size.
+     */
     int size() {
         return queueSize;
     }
